@@ -5,15 +5,11 @@ import (
 	"check42/todo"
 	"encoding/json"
 	"net/http"
-	"os"
 	"strconv"
 )
 
 func main() {
-	store, err := todo.NewJsonTodoStore("db.json")
-	if err != nil {
-		os.Create("db.json")
-	}
+	store := todo.NewJsonTodoStore("db.json")
 	th := todoHandler{store}
 
 	todoRouter := router.NewMethodMux("/todo")

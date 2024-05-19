@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"slices"
 	"time"
@@ -22,13 +23,8 @@ type jsonTodoStore struct {
 
 var ErrNotFound = errors.New("item not found")
 
-func NewJsonTodoStore(filename string) (jsonTodoStore, error) {
-	file, err := os.OpenFile(filename, os.O_CREATE, 0666)
-	if err != nil {
-		panic("Could neither create nor open JSON database file")
-	}
-	defer file.Close()
-	return jsonTodoStore{filename}, nil
+func NewJsonTodoStore(filename string) jsonTodoStore {
+	return jsonTodoStore{filename}
 }
 
 func appendTodo(todos []Todo, todo Todo) []Todo {
@@ -88,16 +84,21 @@ func (store jsonTodoStore) GetTodo(id int) (Todo, error) {
 }
 
 func (store jsonTodoStore) read() ([]Todo, error) {
-	f, err := os.Open(store.filename)
+	f, err := os.OpenFile(store.filename, os.O_CREATE, 0666)
 	if err != nil {
 		return nil, err
 	}
+	defer f.Close()
+
 	var todos []Todo
 	err = json.NewDecoder(f).Decode(&todos)
-	if err != nil {
+
+	if err == io.EOF {
+		return make([]Todo, 0), nil
+	} else if err != nil {
 		return nil, err
 	}
-	f.Close()
+
 	return todos, nil
 }
 
