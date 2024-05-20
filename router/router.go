@@ -45,14 +45,15 @@ func ProcessWithoutResponseBody(p NoValueProcessFunc) http.HandlerFunc {
 type route struct {
 	path       string
 	handlers   map[string]http.HandlerFunc
+	subroutes  []*route
 	registered bool
 }
 
 func NewRoute(path string) *route {
 	return &route{
-		path:     path,
-		handlers: make(map[string]http.HandlerFunc),
-
+		path:       path,
+		handlers:   make(map[string]http.HandlerFunc),
+		subroutes:  make([]*route, 0),
 		registered: false,
 	}
 }
@@ -77,6 +78,12 @@ func (route *route) OnPatch(handler http.HandlerFunc) {
 	route.addHandler("PATCH", handler)
 }
 
+func (route *route) Subroute(path string) *route {
+	r := NewRoute(path)
+	route.subroutes = append(route.subroutes, r)
+	return r
+}
+
 func (route *route) addHandler(method string, handler http.HandlerFunc) {
 	if _, registered := route.handlers[method]; registered {
 		log.Fatalf(`Multiple %s handlers for path "%s"`, method, route.path)
@@ -84,35 +91,41 @@ func (route *route) addHandler(method string, handler http.HandlerFunc) {
 	route.handlers[method] = handler
 }
 
-func (route *route) registerHandlers(mux *http.ServeMux) {
+func (route *route) registerHandlers(mux *http.ServeMux, prefixPath string) {
+	fullPath := prefixPath + route.path
+
 	if route.registered {
-		log.Fatalf(`Methods for path "%s" are registered multiple times`, route.path)
+		log.Fatalf(`Methods for path "%s" are registered multiple times`, fullPath)
 	}
 	route.registered = true
 
-	if len(route.handlers) == 0 {
-		log.Fatalf(`Path "%s" has no handlers`, route.path)
+	if len(route.handlers) != 0 {
+		fmt.Printf("| Registered methods for path %-15s", fullPath)
+		for method := range route.handlers {
+			fmt.Printf(" | %-6s", method)
+		}
+		fmt.Println(" |")
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			if handler, ok := route.handlers[r.Method]; ok {
+				handler(w, r)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		}
+		mux.HandleFunc(fullPath, handler)
+	} else if len(route.subroutes) == 0 {
+		log.Fatalf(`Path "%s" has no handlers`, fullPath)
 	}
 
-	fmt.Printf("| Registered methods for path %-15s", route.path)
-	for method := range route.handlers {
-		fmt.Printf(" | %-6s", method)
+	for _, sr := range route.subroutes {
+		sr.registerHandlers(mux, fullPath)
 	}
-	fmt.Println(" |")
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		if handler, ok := route.handlers[r.Method]; ok {
-			handler(w, r)
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	}
-	mux.HandleFunc(route.path, handler)
 }
 
 func ListenAndServe(addr string, routes ...*route) {
 	mux := http.NewServeMux()
-	for _, route := range routes {
-		route.registerHandlers(mux)
+	for _, r := range routes {
+		r.registerHandlers(mux, "")
 	}
 	http.ListenAndServe(addr, mux)
 }

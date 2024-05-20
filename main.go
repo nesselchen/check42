@@ -13,18 +13,20 @@ func main() {
 	store := todo.NewJsonTodoStore("db.json")
 	th := todoHandler{store}
 
-	frontendRouter := router.NewRoute("/")
-	frontendRouter.OnGet(th.templateHtml)
+	baseRoute := router.NewRoute("/")
+	apiRoute := baseRoute.Subroute("api")
+	todoRoute := apiRoute.Subroute("/todo")
+	todoIdRoute := todoRoute.Subroute("/{id}")
 
-	todoRouter := router.NewRoute("/api/todo")
-	todoRouter.OnGet(router.Process(th.handleGetTodos))
-	todoRouter.OnPost(router.ProcessWithoutResponseBody(th.handlePostTodo))
+	baseRoute.OnGet(th.templateHtml)
 
-	singleTodoRouter := router.NewRoute("/api/todo/{id}")
-	singleTodoRouter.OnGet(router.Process(th.handleGetTodo))
-	singleTodoRouter.OnDelete(router.ProcessWithoutResponseBody(th.handleDeleteTodo))
+	todoRoute.OnPost(router.ProcessWithoutResponseBody(th.handlePostTodo))
+	todoRoute.OnGet(router.Process(th.handleGetTodos))
 
-	router.ListenAndServe("0.0.0.0:2442", frontendRouter, todoRouter, singleTodoRouter)
+	todoIdRoute.OnGet(router.Process(th.handleGetTodo))
+	todoIdRoute.OnDelete(router.ProcessWithoutResponseBody(th.handleDeleteTodo))
+
+	router.ListenAndServe("0.0.0.0:2442", baseRoute)
 }
 
 type todoHandler struct {
