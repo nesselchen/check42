@@ -24,7 +24,7 @@ func main() {
 	singleTodoRouter.OnGet(router.Process(th.handleGetTodo))
 	singleTodoRouter.OnDelete(router.ProcessWithoutResponseBody(th.handleDeleteTodo))
 
-	router.ListenAndServe("127.0.0.1:9999", frontendRouter, todoRouter, singleTodoRouter)
+	router.ListenAndServe("0.0.0.0:2442", frontendRouter, todoRouter, singleTodoRouter)
 }
 
 type todoHandler struct {
