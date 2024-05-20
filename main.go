@@ -6,28 +6,50 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"text/template"
 )
 
 func main() {
 	store := todo.NewJsonTodoStore("db.json")
 	th := todoHandler{store}
 
-	todoRouter := router.NewMethodMux("/todo")
+	frontendRouter := router.NewRoute("/")
+	frontendRouter.OnGet(th.templateHtml)
+
+	todoRouter := router.NewRoute("/api/todo")
 	todoRouter.OnGet(router.Process(th.handleGetTodos))
 	todoRouter.OnPost(router.ProcessWithoutResponseBody(th.handlePostTodo))
 
-	singleTodoRouter := router.NewMethodMux("/todo/{id}")
+	singleTodoRouter := router.NewRoute("/api/todo/{id}")
 	singleTodoRouter.OnGet(router.Process(th.handleGetTodo))
 	singleTodoRouter.OnDelete(router.ProcessWithoutResponseBody(th.handleDeleteTodo))
 
-	router.ListenAndServe("127.0.0.1:9999", todoRouter, singleTodoRouter)
+	router.ListenAndServe("127.0.0.1:9999", frontendRouter, todoRouter, singleTodoRouter)
 }
 
 type todoHandler struct {
 	store todo.TodoStore
 }
 
-// GET /todo
+// GET /
+func (th todoHandler) templateHtml(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.New("index.html.tmpl").ParseFiles("templates/index.html.tmpl")
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+	todos, err := th.store.GetAllTodos()
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+	if err := tmpl.Execute(w, todos); err != nil {
+		w.WriteHeader(500)
+		return
+	}
+}
+
+// GET /api/todo
 func (th todoHandler) handleGetTodos(r *http.Request) ([]todo.Todo, router.HttpStatus) {
 	ts, err := th.store.GetAllTodos()
 	if err != nil {
@@ -36,7 +58,7 @@ func (th todoHandler) handleGetTodos(r *http.Request) ([]todo.Todo, router.HttpS
 	return ts, router.HttpStatus{Code: 200, Err: nil}
 }
 
-// POST /todo
+// POST /api/todo
 func (th todoHandler) handlePostTodo(r *http.Request) router.HttpStatus {
 	var todo todo.Todo
 	err := json.NewDecoder(r.Body).Decode(&todo)
@@ -50,7 +72,7 @@ func (th todoHandler) handlePostTodo(r *http.Request) router.HttpStatus {
 	return router.HttpStatus{Code: 201, Err: nil}
 }
 
-// GET /todo/{id}
+// GET /api/todo/{id}
 func (th todoHandler) handleGetTodo(r *http.Request) (todo.Todo, router.HttpStatus) {
 	pathValue := r.PathValue("id")
 	id, err := strconv.ParseInt(pathValue, 10, 32)
@@ -64,7 +86,7 @@ func (th todoHandler) handleGetTodo(r *http.Request) (todo.Todo, router.HttpStat
 	return td, router.HttpStatus{Code: http.StatusOK, Err: nil}
 }
 
-// DELETE /todo/{id}
+// DELETE /api/todo/{id}
 func (th todoHandler) handleDeleteTodo(r *http.Request) router.HttpStatus {
 	pathValue := r.PathValue("id")
 	id, err := strconv.ParseInt(pathValue, 10, 32)

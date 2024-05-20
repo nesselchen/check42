@@ -42,76 +42,77 @@ func ProcessWithoutResponseBody(p NoValueProcessFunc) http.HandlerFunc {
 	}
 }
 
-type methodMux struct {
+type route struct {
 	path       string
 	handlers   map[string]http.HandlerFunc
 	registered bool
 }
 
-func NewMethodMux(path string) *methodMux {
-	return &methodMux{
-		path:       path,
-		handlers:   make(map[string]http.HandlerFunc),
+func NewRoute(path string) *route {
+	return &route{
+		path:     path,
+		handlers: make(map[string]http.HandlerFunc),
+
 		registered: false,
 	}
 }
 
-func (mm *methodMux) OnGet(handler http.HandlerFunc) {
-	mm.addHandler("GET", handler)
+func (route *route) OnGet(handler http.HandlerFunc) {
+	route.addHandler("GET", handler)
 }
 
-func (mm *methodMux) OnPut(handler http.HandlerFunc) {
-	mm.addHandler("PUT", handler)
+func (route *route) OnPut(handler http.HandlerFunc) {
+	route.addHandler("PUT", handler)
 }
 
-func (mm *methodMux) OnPost(handler http.HandlerFunc) {
-	mm.addHandler("POST", handler)
+func (route *route) OnPost(handler http.HandlerFunc) {
+	route.addHandler("POST", handler)
 }
 
-func (mm *methodMux) OnDelete(handler http.HandlerFunc) {
-	mm.addHandler("DELETE", handler)
+func (route *route) OnDelete(handler http.HandlerFunc) {
+	route.addHandler("DELETE", handler)
 }
 
-func (mm *methodMux) OnPatch(handler http.HandlerFunc) {
-	mm.addHandler("PATCH", handler)
+func (route *route) OnPatch(handler http.HandlerFunc) {
+	route.addHandler("PATCH", handler)
 }
 
-func (mm *methodMux) addHandler(method string, handler http.HandlerFunc) {
-	if _, registered := mm.handlers[method]; registered {
-		log.Fatalf(`Multiple %s handlers for path "%s"`, method, mm.path)
+func (route *route) addHandler(method string, handler http.HandlerFunc) {
+	if _, registered := route.handlers[method]; registered {
+		log.Fatalf(`Multiple %s handlers for path "%s"`, method, route.path)
 	}
-	mm.handlers[method] = handler
+	route.handlers[method] = handler
 }
 
-func (mm *methodMux) registerHandlers(mux *http.ServeMux) {
-	if mm.registered {
-		log.Fatalf(`Methods for path "%s" are registered multiple times`, mm.path)
+func (route *route) registerHandlers(mux *http.ServeMux) {
+	if route.registered {
+		log.Fatalf(`Methods for path "%s" are registered multiple times`, route.path)
 	}
-	mm.registered = true
+	route.registered = true
 
-	if len(mm.handlers) == 0 {
-		log.Fatalf(`Path "%s" has no handlers`, mm.path)
+	if len(route.handlers) == 0 {
+		log.Fatalf(`Path "%s" has no handlers`, route.path)
 	}
 
-	fmt.Printf("| Registered methods for path %-15s", mm.path)
-	for method := range mm.handlers {
+	fmt.Printf("| Registered methods for path %-15s", route.path)
+	for method := range route.handlers {
 		fmt.Printf(" | %-6s", method)
 	}
 	fmt.Println(" |")
 	handler := func(w http.ResponseWriter, r *http.Request) {
-		if handler, ok := mm.handlers[r.Method]; ok {
+		if handler, ok := route.handlers[r.Method]; ok {
 			handler(w, r)
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}
-	mux.HandleFunc(mm.path, handler)
+	mux.HandleFunc(route.path, handler)
 }
 
-func ListenAndServe(addr string, mms ...*methodMux) {
+func ListenAndServe(addr string, routes ...*route) {
 	mux := http.NewServeMux()
-	for _, mm := range mms {
-		mm.registerHandlers(mux)
+	for _, route := range routes {
+		route.registerHandlers(mux)
 	}
 	http.ListenAndServe(addr, mux)
 }
