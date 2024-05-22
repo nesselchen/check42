@@ -3,10 +3,11 @@ FROM golang:1.22
 WORKDIR /app
 
 COPY go.mod     ./
-# COPY go.sum     ./
-COPY router     ./router/
+COPY go.sum     ./
+COPY api        ./api/
 COPY templates  ./templates/
-COPY todo       ./todo/
+COPY types      ./types/
+COPY store      ./store/
 
 # RUN go mod download
 

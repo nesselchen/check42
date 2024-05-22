@@ -122,10 +122,10 @@ func (route *route) registerHandlers(mux *http.ServeMux, prefixPath string) {
 	}
 }
 
-func ListenAndServe(addr string, routes ...*route) {
+func ListenAndServe(addr string, routes ...*route) error {
 	mux := http.NewServeMux()
 	for _, r := range routes {
 		r.registerHandlers(mux, "")
 	}
-	http.ListenAndServe(addr, mux)
+	return http.ListenAndServe(addr, mux)
 }
