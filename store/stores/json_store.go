@@ -1,4 +1,4 @@
-package store
+package stores
 
 import (
 	"check42/model/todos"
@@ -20,12 +20,12 @@ func NewJsonTodoStore(filename string) jsonTodoStore {
 
 func appendTodo(tds []todos.Todo, todo todos.Todo) []todos.Todo {
 	if len(tds) == 0 {
-		todo.Id = 0
+		todo.ID = 0
 		return append(tds, todo)
 	}
-	todo.Id = 1 + slices.MaxFunc(tds, func(t1, t2 todos.Todo) int {
-		return t1.Id - t2.Id
-	}).Id
+	todo.ID = 1 + slices.MaxFunc(tds, func(t1, t2 todos.Todo) int {
+		return t1.ID - t2.ID
+	}).ID
 	return append(tds, todo)
 }
 
@@ -51,7 +51,7 @@ func (store jsonTodoStore) DeleteTodo(id int) error {
 		return err
 	}
 	idx := slices.IndexFunc(tds, func(t todos.Todo) bool {
-		return t.Id == id
+		return t.ID == id
 	})
 	if idx == -1 {
 		return ErrNotFound
@@ -68,11 +68,15 @@ func (store jsonTodoStore) GetTodo(id int) (todos.Todo, error) {
 	if err != nil {
 		return todos.Todo{}, err
 	}
-	idx := slices.IndexFunc(tds, func(t todos.Todo) bool { return t.Id == id })
+	idx := slices.IndexFunc(tds, func(t todos.Todo) bool { return t.ID == id })
 	if idx < 0 {
 		return todos.Todo{}, fmt.Errorf("no element with ID %d", id)
 	}
 	return tds[idx], nil
+}
+
+func (store jsonTodoStore) UpdateTodo(id int, t todos.Todo) error {
+	panic("Calling unimplemented method jsonTodoStore.UpdateTodo")
 }
 
 func (store jsonTodoStore) read() ([]todos.Todo, error) {

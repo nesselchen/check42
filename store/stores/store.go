@@ -1,4 +1,4 @@
-package store
+package stores
 
 import (
 	"check42/model/todos"
@@ -7,6 +7,7 @@ import (
 
 type TodoStore interface {
 	GetAllTodos() ([]todos.Todo, error)
+	UpdateTodo(int, todos.Todo) error
 	GetTodo(int) (todos.Todo, error)
 	CreateTodo(todos.Todo) error
 	DeleteTodo(int) error

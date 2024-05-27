@@ -6,7 +6,7 @@ COPY go.mod     ./
 COPY go.sum     ./
 COPY api        ./api/
 COPY templates  ./templates/
-COPY types      ./types/
+COPY model      ./model/
 COPY store      ./store/
 
 # RUN go mod download

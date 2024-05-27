@@ -21,6 +21,7 @@ func Process[T any](p ProcessFunc[T]) http.HandlerFunc {
 		result, status := p(r)
 		code := status.Code
 		if code >= 400 {
+			fmt.Printf("Error %d in %v: %s", status.Code, r.RequestURI, status.Err)
 			w.WriteHeader(code)
 			return
 		}
@@ -35,6 +36,7 @@ func ProcessWithoutResponseBody(p NoValueProcessFunc) http.HandlerFunc {
 		status := p(r)
 		code := status.Code
 		if code >= 400 {
+			fmt.Printf("Error %d in %v: %s", status.Code, r.RequestURI, status.Err)
 			w.WriteHeader(code)
 			return
 		}
@@ -49,7 +51,7 @@ type route struct {
 	registered bool
 }
 
-func NewRoute(path string) *route {
+func New(path string) *route {
 	return &route{
 		path:       path,
 		handlers:   make(map[string]http.HandlerFunc),
@@ -79,7 +81,7 @@ func (route *route) OnPatch(handler http.HandlerFunc) {
 }
 
 func (route *route) Subroute(path string) *route {
-	r := NewRoute(path)
+	r := New(path)
 	route.subroutes = append(route.subroutes, r)
 	return r
 }
@@ -124,6 +126,7 @@ func (route *route) registerHandlers(mux *http.ServeMux, prefixPath string) {
 
 func ListenAndServe(addr string, routes ...*route) error {
 	mux := http.NewServeMux()
+	fmt.Println("Starting server on", addr)
 	for _, r := range routes {
 		r.registerHandlers(mux, "")
 	}

@@ -1,51 +1,60 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"check42/api"
+	"check42/model/todos"
+	"check42/store/stores"
+
+	"github.com/go-sql-driver/mysql"
 )
 
-// var logo string = `
-//  ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗ ██╗  ██╗██████╗
-// ██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝ ██║  ██║╚════██╗
-// ██║     ███████║█████╗  ██║     █████╔╝  ███████║ █████╔╝
-// ██║     ██╔══██║██╔══╝  ██║     ██╔═██╗  ╚════██║██╔═══╝
-// ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗      ██║███████╗
-//  ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝      ╚═╝╚══════╝
-// `
+var logo string = `
+ ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗ ██╗  ██╗██████╗
+██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝ ██║  ██║╚════██╗
+██║     ███████║█████╗  ██║     █████╔╝  ███████║ █████╔╝
+██║     ██╔══██║██╔══╝  ██║     ██╔═██╗  ╚════██║██╔═══╝
+╚██████╗██║  ██║███████╗╚██████╗██║  ██╗      ██║███████╗
+ ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝      ╚═╝╚══════╝
+`
 
 func main() {
-	// store := store.NewJsonTodoStore("db.json")
-	password := os.Getenv("DB_PASSWORD")
-	port := os.Getenv("DB_PORT")
-	dsn := fmt.Sprintf("root:%s@tcp(mysql:%s)/", password, port)
-	time.Sleep(2 * time.Second)
 
-	db, _ := sql.Open("mysql", dsn)
-	if err := db.Ping(); err != nil {
+	config := mysql.Config{
+		User:      "root",
+		Passwd:    "root",
+		Net:       "tcp",
+		Addr:      "mysql:3306",
+		DBName:    "check42",
+		ParseTime: true,
+	}
+
+	var store *stores.MySQLTodoStore
+	fmt.Print("Connecting...")
+	for {
+		var err error
+		store, err = stores.NewMySQLTodoStore(config)
+		if err == nil {
+			fmt.Println()
+			break
+		}
+		fmt.Print(".")
+		time.Sleep(3 * time.Second)
+	}
+	defer store.Close()
+
+	err := store.CreateTodo(todos.Todo{
+		Owner: 1,
+		Text:  "Test",
+		Done:  false,
+	})
+	if err != nil {
 		log.Fatal(err)
 	}
-	if _, err := db.Exec(`CREATE DATABASE IF NOT EXISTS check42`); err != nil {
-		log.Fatal("Err in line 35 ", err)
-	}
 
-	db, _ = sql.Open("mysql", dsn+"check42")
-	// r, err := db.Query("SELECT * FROM user")
-	// if err != nil {
-	// 	log.Fatal("Err in line 43 ", err)
-	// }
-	// for r.Next() {
-	// 	var id int
-	// 	var name string
-	// 	r.Scan(&id, &name)
-	// 	fmt.Println(id, name)
-	// }
-
-	// fmt.Println(logo)
-	// api.RunServer("0.0.0.0:2442", store)
+	fmt.Println(logo)
+	api.RunServer("0.0.0.0:2442", store)
 }
