@@ -2,7 +2,7 @@ package api
 
 import (
 	"check42/api/router"
-	"check42/model/todos"
+	"check42/model"
 	"check42/store/stores"
 	"encoding/json"
 	"fmt"
@@ -56,7 +56,7 @@ func (s server) templateHtml(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /api/todo
-func (s server) handleGetTodos(r *http.Request) ([]todos.Todo, router.HttpStatus) {
+func (s server) handleGetTodos(r *http.Request) ([]model.Todo, router.HttpStatus) {
 	ts, err := s.store.GetAllTodos()
 	if err != nil {
 		return nil, router.HttpStatus{Code: http.StatusInternalServerError, Err: err}
@@ -66,12 +66,12 @@ func (s server) handleGetTodos(r *http.Request) ([]todos.Todo, router.HttpStatus
 
 // POST /api/todo
 func (s server) handlePostTodo(r *http.Request) router.HttpStatus {
-	var todo todos.Todo
+	var todo model.Todo
 	err := json.NewDecoder(r.Body).Decode(&todo)
 	if err != nil {
 		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
 	}
-	if err := todo.ValidateNew(); err != nil {
+	if err := todo.ValidateNew(); err.Err() {
 		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
 	}
 	err = s.store.CreateTodo(todo)
@@ -82,18 +82,18 @@ func (s server) handlePostTodo(r *http.Request) router.HttpStatus {
 }
 
 // GET /api/todo/{id}
-func (s server) handleGetTodo(r *http.Request) (todos.Todo, router.HttpStatus) {
+func (s server) handleGetTodo(r *http.Request) (model.Todo, router.HttpStatus) {
 	pathValue := r.PathValue("id")
 	id, err := strconv.ParseInt(pathValue, 10, 64)
 	if err != nil {
-		return todos.Todo{}, router.HttpStatus{Code: http.StatusBadRequest, Err: err}
+		return model.Todo{}, router.HttpStatus{Code: http.StatusBadRequest, Err: err}
 	}
 	td, err := s.store.GetTodo(int(id))
 	if err == stores.ErrNotFound {
-		return todos.Todo{}, router.HttpStatus{Code: http.StatusNotFound, Err: fmt.Errorf("no todo with ID %d", id)}
+		return model.Todo{}, router.HttpStatus{Code: http.StatusNotFound, Err: fmt.Errorf("no todo with ID %d", id)}
 	}
 	if err != nil {
-		return todos.Todo{}, router.HttpStatus{Code: http.StatusInternalServerError}
+		return model.Todo{}, router.HttpStatus{Code: http.StatusInternalServerError}
 	}
 	return td, router.HttpStatus{Code: http.StatusOK, Err: nil}
 }
@@ -119,7 +119,7 @@ func (s server) handlePatchTodo(r *http.Request) router.HttpStatus {
 	if err != nil {
 		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
 	}
-	var t todos.Todo
+	var t model.Todo
 	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
 		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
 	}

@@ -1,8 +1,7 @@
-package todos
+package model
 
 import (
-	"errors"
-	"strings"
+	"check42/api/router"
 	"time"
 )
 
@@ -15,18 +14,13 @@ type Todo struct {
 	Created time.Time `json:"created"`
 }
 
-func (t Todo) ValidateNew() error {
-	builder := strings.Builder{}
+func (t Todo) ValidateNew() router.ValidationErr {
+	err := router.NewValidationErr()
 	if t.Owner == 0 {
-		builder.WriteString("field 'owner' not set.\n")
+		err.Hint("owner", router.HintMissingOrZero)
 	}
 	if t.Text == "" {
-		builder.WriteString("field 'text' should not be empty.\n")
+		err.Hint("text", router.HintEmptyString)
 	}
-
-	if builder.Len() == 0 {
-		return nil
-	}
-	err := errors.New(builder.String())
 	return err
 }

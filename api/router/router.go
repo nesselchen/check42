@@ -3,6 +3,7 @@ package router
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 )
@@ -17,30 +18,37 @@ type HttpStatus struct {
 }
 
 func Process[T any](p ProcessFunc[T]) http.HandlerFunc {
+	return process(p, true)
+}
+
+func ProcessWithoutResponseBody(n NoValueProcessFunc) http.HandlerFunc {
+	p := func(r *http.Request) (struct{}, HttpStatus) {
+		status := n(r)
+		return struct{}{}, status
+	}
+	return process(p, false)
+}
+
+func process[T any](p ProcessFunc[T], writeBody bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		result, status := p(r)
 		code := status.Code
 		if code >= 400 {
 			fmt.Printf("Error %d in %v: %s", status.Code, r.RequestURI, status.Err)
 			w.WriteHeader(code)
+			switch status.Err.(type) {
+			case ValidationErr:
+				io.WriteString(w, status.Err.Error())
+			}
 			return
 		}
-		w.Header().Add("Content-Type", "application/json")
-		w.WriteHeader(code)
-		json.NewEncoder(w).Encode(result)
-	}
-}
-
-func ProcessWithoutResponseBody(p NoValueProcessFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		status := p(r)
-		code := status.Code
-		if code >= 400 {
-			fmt.Printf("Error %d in %v: %s", status.Code, r.RequestURI, status.Err)
+		if writeBody {
+			w.Header().Add("Content-Type", "application/json")
 			w.WriteHeader(code)
-			return
+			json.NewEncoder(w).Encode(result)
+		} else {
+			w.WriteHeader(code)
 		}
-		w.WriteHeader(code)
 	}
 }
 

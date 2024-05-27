@@ -1,15 +1,15 @@
 package stores
 
 import (
-	"check42/model/todos"
+	"check42/model"
 	"errors"
 )
 
 type TodoStore interface {
-	GetAllTodos() ([]todos.Todo, error)
-	UpdateTodo(int, todos.Todo) error
-	GetTodo(int) (todos.Todo, error)
-	CreateTodo(todos.Todo) error
+	GetAllTodos() ([]model.Todo, error)
+	UpdateTodo(int, model.Todo) error
+	GetTodo(int) (model.Todo, error)
+	CreateTodo(model.Todo) error
 	DeleteTodo(int) error
 }
 

@@ -1,7 +1,7 @@
 package stores
 
 import (
-	"check42/model/todos"
+	"check42/model"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,18 +18,18 @@ func NewJsonTodoStore(filename string) jsonTodoStore {
 	return jsonTodoStore{filename}
 }
 
-func appendTodo(tds []todos.Todo, todo todos.Todo) []todos.Todo {
+func appendTodo(tds []model.Todo, todo model.Todo) []model.Todo {
 	if len(tds) == 0 {
 		todo.ID = 0
 		return append(tds, todo)
 	}
-	todo.ID = 1 + slices.MaxFunc(tds, func(t1, t2 todos.Todo) int {
+	todo.ID = 1 + slices.MaxFunc(tds, func(t1, t2 model.Todo) int {
 		return t1.ID - t2.ID
 	}).ID
 	return append(tds, todo)
 }
 
-func (store jsonTodoStore) CreateTodo(todo todos.Todo) error {
+func (store jsonTodoStore) CreateTodo(todo model.Todo) error {
 	todos, err := store.read()
 	if err != nil {
 		return err
@@ -41,7 +41,7 @@ func (store jsonTodoStore) CreateTodo(todo todos.Todo) error {
 	return store.write(todos)
 }
 
-func (store jsonTodoStore) GetAllTodos() ([]todos.Todo, error) {
+func (store jsonTodoStore) GetAllTodos() ([]model.Todo, error) {
 	return store.read()
 }
 
@@ -50,7 +50,7 @@ func (store jsonTodoStore) DeleteTodo(id int) error {
 	if err != nil {
 		return err
 	}
-	idx := slices.IndexFunc(tds, func(t todos.Todo) bool {
+	idx := slices.IndexFunc(tds, func(t model.Todo) bool {
 		return t.ID == id
 	})
 	if idx == -1 {
@@ -63,34 +63,34 @@ func (store jsonTodoStore) DeleteTodo(id int) error {
 	return nil
 }
 
-func (store jsonTodoStore) GetTodo(id int) (todos.Todo, error) {
+func (store jsonTodoStore) GetTodo(id int) (model.Todo, error) {
 	tds, err := store.read()
 	if err != nil {
-		return todos.Todo{}, err
+		return model.Todo{}, err
 	}
-	idx := slices.IndexFunc(tds, func(t todos.Todo) bool { return t.ID == id })
+	idx := slices.IndexFunc(tds, func(t model.Todo) bool { return t.ID == id })
 	if idx < 0 {
-		return todos.Todo{}, fmt.Errorf("no element with ID %d", id)
+		return model.Todo{}, fmt.Errorf("no element with ID %d", id)
 	}
 	return tds[idx], nil
 }
 
-func (store jsonTodoStore) UpdateTodo(id int, t todos.Todo) error {
+func (store jsonTodoStore) UpdateTodo(id int, t model.Todo) error {
 	panic("Calling unimplemented method jsonTodoStore.UpdateTodo")
 }
 
-func (store jsonTodoStore) read() ([]todos.Todo, error) {
+func (store jsonTodoStore) read() ([]model.Todo, error) {
 	f, err := os.OpenFile(store.filename, os.O_CREATE, 0666)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	var tds []todos.Todo
+	var tds []model.Todo
 	err = json.NewDecoder(f).Decode(&tds)
 
 	if err == io.EOF {
-		return make([]todos.Todo, 0), nil
+		return make([]model.Todo, 0), nil
 	} else if err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (store jsonTodoStore) read() ([]todos.Todo, error) {
 	return tds, nil
 }
 
-func (store jsonTodoStore) write(todos []todos.Todo) error {
+func (store jsonTodoStore) write(todos []model.Todo) error {
 	f, err := os.OpenFile(store.filename, os.O_RDWR|os.O_TRUNC, 0666)
 	if err != nil {
 		return err
