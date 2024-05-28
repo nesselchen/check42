@@ -34,7 +34,7 @@ func process[T any](p ProcessFunc[T], writeBody bool) http.HandlerFunc {
 		result, status := p(r)
 		code := status.Code
 		if code >= 400 {
-			fmt.Printf("Error %d in %v: %s", status.Code, r.RequestURI, status.Err)
+			fmt.Printf("Error %d in %v: %s\n", status.Code, r.RequestURI, status.Err)
 			w.WriteHeader(code)
 			switch status.Err.(type) {
 			case ValidationErr:
@@ -53,18 +53,20 @@ func process[T any](p ProcessFunc[T], writeBody bool) http.HandlerFunc {
 }
 
 type route struct {
-	path       string
-	handlers   map[string]http.HandlerFunc
-	subroutes  []*route
-	registered bool
+	path        string
+	handlers    map[string]http.HandlerFunc
+	subroutes   []*route
+	middlewares []Middleware
+	registered  bool
 }
 
 func New(path string) *route {
 	return &route{
-		path:       path,
-		handlers:   make(map[string]http.HandlerFunc),
-		subroutes:  make([]*route, 0),
-		registered: false,
+		path:        path,
+		handlers:    make(map[string]http.HandlerFunc),
+		subroutes:   make([]*route, 0),
+		middlewares: make([]Middleware, 0),
+		registered:  false,
 	}
 }
 
@@ -94,6 +96,10 @@ func (route *route) Subroute(path string) *route {
 	return r
 }
 
+func (route *route) Use(m ...Middleware) {
+	route.middlewares = append(route.middlewares, m...)
+}
+
 func (route *route) addHandler(method string, handler http.HandlerFunc) {
 	if _, registered := route.handlers[method]; registered {
 		log.Fatalf(`Multiple %s handlers for path "%s"`, method, route.path)
@@ -116,6 +122,18 @@ func (route *route) registerHandlers(mux *http.ServeMux, prefixPath string) {
 		}
 		fmt.Println(" |")
 		handler := func(w http.ResponseWriter, r *http.Request) {
+			for _, mw := range route.middlewares {
+				var status HttpStatus
+				r, status = mw(r)
+				if status.Code >= 400 {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(status.Code)
+					if err := status.Err; err != nil {
+						io.WriteString(w, fmt.Sprintf(`{"error": "%s"}`, err))
+					}
+					return
+				}
+			}
 			if handler, ok := route.handlers[r.Method]; ok {
 				handler(w, r)
 			} else {
@@ -128,6 +146,7 @@ func (route *route) registerHandlers(mux *http.ServeMux, prefixPath string) {
 	}
 
 	for _, sr := range route.subroutes {
+		sr.middlewares = append(sr.middlewares, route.middlewares...)
 		sr.registerHandlers(mux, fullPath)
 	}
 }

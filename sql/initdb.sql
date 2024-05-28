@@ -1,23 +1,34 @@
-CREATE DATABASE IF NOT EXISTS `check42` ;
+create database if not exists `check42` ;
 
-USE `check42`;
+use `check42`;
 
-CREATE TABLE IF NOT EXISTS `user` (
-    `id` INT NOT NULL AUTO_INCREMENT,
-    `email` VARCHAR(50) NOT NULL,
-    `name` VARCHAR(140),
-    primary key (`id`)
+create table if not exists `user` (
+    `id` int not null auto_increment,
+    `name` varchar(140) not null,
+    `email` varchar(50) not null,
+    `password_hash` varchar(255) not null,
+    `created` datetime default current_timestamp,
+    primary key (`id`),
+    unique (`email`)
 );
 
-CREATE TABLE IF NOT EXISTS `todo`(
-    `id` INT NOT NULL AUTO_INCREMENT,
-    `owner` INT NOT NULL,
-    `text` VARCHAR(140),
-    `done` BOOLEAN DEFAULT 0,
-    `due` DATETIME NULL,
-    `created` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`id`),
-    FOREIGN KEY (`owner`) REFERENCES user(`id`)
+create table if not exists `todo`(
+    `id` int not null auto_increment,
+    `owner` int not null,
+    `text` varchar(140),
+    `done` boolean default 0,
+    `due` datetime null,
+    `created` datetime default current_timestamp,
+    primary key (`id`),
+    foreign key (`owner`) references user(`id`)
 );
 
-INSERT INTO user (`name`, `email`) VALUES ("admin", "admin@adm.in");
+insert into user (`name`, `email`, `password_hash`) values
+    ("admin", "admin@adm.in", "$2a$10$tYtiAnVF2EJ6WPT894/YaO.VoQ08sknhVSa2jT0Sac1bvK2AgWeN."),
+    ("user", "user@us.er", "$2a$10$tYtiAnVF2EJ6WPT894/YaO.VoQ08sknhVSa2jT0Sac1bvK2AgWeN.");
+    
+insert into todo (`owner`, `text`) values
+    (1, "Input validation"),
+    (1, "User authentication"),
+    (1, "Frontend client"),
+    (1, "Testing");

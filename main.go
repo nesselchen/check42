@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"time"
@@ -21,37 +22,45 @@ var logo string = `
 `
 
 func main() {
-
 	config := mysql.Config{
 		User:      "root",
 		Passwd:    "root",
 		Net:       "tcp",
-		Addr:      "mysql:3306",
+		Addr:      "localhost:3306",
 		DBName:    "check42",
 		ParseTime: true,
 	}
 
-	var store *stores.MySQLTodoStore
-	retries := 1
-	const maxRetries = 10
-	for {
-		var err error
-		store, err = stores.NewMySQLTodoStore(config)
-		if err == nil {
-			fmt.Println()
-			break
-		}
-		if retries >= maxRetries {
-			log.Fatal("Maximum number of retries exceeded")
-		}
-		fmt.Printf("Connection to database failed. Retrying (%d/%d)\n", retries, maxRetries)
-		time.Sleep(3 * time.Second)
-		retries++
-	}
+	db, err := connectWithRetries(config, 10)
 
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 	fmt.Println("Connection successful")
-	defer store.Close()
+
+	todos := stores.NewMySQLTodoStore(db)
+	users := stores.NewMySQLUserStore(db)
 
 	fmt.Println(logo)
-	api.RunServer("0.0.0.0:2442", store)
+	api.RunServer("127.0.0.1:2442", todos, users)
+}
+
+func connectWithRetries(config mysql.Config, maxTries int) (*sql.DB, error) {
+	tries := 1
+	for tries < maxTries {
+		db, err := sql.Open("mysql", config.FormatDSN())
+		if err != nil {
+			return nil, err
+		}
+		if err := db.Ping(); err != nil {
+			fmt.Printf("Connection to database failed. Retrying (%d/%d)\n", tries, maxTries)
+			time.Sleep(3 * time.Second)
+			tries++
+			continue
+		}
+		return db, nil
+	}
+	log.Fatal("Maximum number of retries exceeded")
+	return nil, nil
 }
