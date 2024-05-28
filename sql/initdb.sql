@@ -9,7 +9,8 @@ create table if not exists `user` (
     `password_hash` varchar(255) not null,
     `created` datetime default current_timestamp,
     primary key (`id`),
-    unique (`email`)
+    unique (`name`)
+    unique (`email`),
 );
 
 create table if not exists `todo`(

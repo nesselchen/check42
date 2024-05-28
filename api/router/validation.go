@@ -12,6 +12,7 @@ const (
 	HintMissingOrZero   = "is missing or zero"
 	HintEmptyString     = "is left empty"
 	HintIncorrectFormat = "has incorrect format"
+	HintMinimumLength8  = "should be at least 8 characters long"
 )
 
 type validationErr struct {

@@ -3,15 +3,11 @@ package stores
 import (
 	"check42/model"
 	"database/sql"
+	"errors"
+	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 )
-
-type UserStore interface {
-	GetUserByID(id int) (model.User, error)
-	GetUserByName(name string) (model.User, error)
-	CreateUser(model.User) error
-}
 
 type UserDB struct {
 	db *sql.DB
@@ -41,11 +37,8 @@ func (store UserDB) GetUserByName(name string) (model.User, error) {
 	return u, nil
 }
 
-func (store UserDB) CreateUser(u model.User) error {
-	if err := u.Validate(); err.Err() {
-		return err
-	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(u.PasswordHash), bcrypt.DefaultCost)
+func (store UserDB) CreateUser(u model.NewUser) error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
@@ -54,7 +47,16 @@ func (store UserDB) CreateUser(u model.User) error {
 	_, err = store.db.Exec(q, u.Name, u.Email, hash)
 
 	if err != nil {
-		return err
+		msg := err.Error()
+		if !strings.Contains(msg, "Duplicate entry") {
+			return errors.New("error creating new user")
+		}
+		if strings.Contains(msg, "user.name") {
+			return ErrUsernameTaken
+		}
+		if strings.Contains(msg, "user.email") {
+			return ErrEmailTaken
+		}
 	}
 
 	return nil

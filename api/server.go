@@ -38,14 +38,19 @@ func RunServer(addr string, todos stores.TodoStore, users stores.UserStore) {
 		[]byte(secret),
 	}
 
-	login := router.New("/login")
+	base := router.New("/")
+
+	auth := base.Subroute("auth")
+
+	signin := auth.Subroute("/signin")
+	signin.OnPost(s.handleSignin)
+
+	login := auth.Subroute("/login")
 	login.OnPost(s.handleLogin)
 	login.Use(router.BasicAuth(authority))
 
-	base := router.New("/")
-	base.Use(router.JWTAuth(authority))
-
 	api := base.Subroute("api")
+	api.Use(router.JWTAuth(authority))
 	todo := api.Subroute("/todo")
 	todoId := todo.Subroute("/{id}")
 
@@ -54,14 +59,14 @@ func RunServer(addr string, todos stores.TodoStore, users stores.UserStore) {
 
 	// base.OnGet(s.templateHtml)
 
-	todo.OnPost(router.ProcessWithoutResponseBody(s.handlePostTodo))
+	todo.OnPost(router.Process(s.handlePostTodo))
 	todo.OnGet((router.Process(s.handleGetTodos)))
 
 	todoId.OnGet(router.Process(s.handleGetTodo))
 	todoId.OnDelete(router.ProcessWithoutResponseBody(s.handleDeleteTodo))
 	todoId.OnPatch(router.ProcessWithoutResponseBody(s.handlePatchTodo))
 
-	log.Fatal(router.ListenAndServe(s.addr, base, login))
+	log.Fatal(router.ListenAndServe(s.addr, base))
 }
 
 // // GET /
@@ -96,30 +101,42 @@ func (s server) handleGetTodos(r *http.Request) ([]model.Todo, router.HttpStatus
 }
 
 // POST /api/todo
-func (s server) handlePostTodo(r *http.Request) router.HttpStatus {
+func (s server) handlePostTodo(r *http.Request) (int64, router.HttpStatus) {
+	claims, ok := router.GetClaims(r)
+	if !ok {
+		return 0, router.HttpStatus{Code: 500, Err: errors.New("internal error")}
+	}
+
 	var todo model.Todo
 	err := json.NewDecoder(r.Body).Decode(&todo)
 	if err != nil {
-		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
+		return 0, router.HttpStatus{Code: http.StatusBadRequest, Err: err}
 	}
 	if err := todo.ValidateNew(); err.Err() {
-		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
+		return 0, router.HttpStatus{Code: http.StatusBadRequest, Err: err}
 	}
-	err = s.todos.CreateTodo(todo)
+
+	todo.Owner = claims.ID
+	id, err := s.todos.CreateTodo(todo)
 	if err != nil {
-		return router.HttpStatus{Code: 500, Err: err}
+		return 0, router.HttpStatus{Code: 500, Err: err}
 	}
-	return router.HttpStatus{Code: 201, Err: nil}
+	return id, router.HttpStatus{Code: 201, Err: nil}
 }
 
 // GET /api/todo/{id}
 func (s server) handleGetTodo(r *http.Request) (model.Todo, router.HttpStatus) {
+	claims, ok := router.GetClaims(r)
+	if !ok {
+		return model.Todo{}, router.HttpStatus{Code: 500, Err: errors.New("internal error")}
+	}
+
 	pathValue := r.PathValue("id")
 	id, err := strconv.ParseInt(pathValue, 10, 64)
 	if err != nil {
 		return model.Todo{}, router.HttpStatus{Code: http.StatusBadRequest, Err: err}
 	}
-	td, err := s.todos.GetTodo(int(id))
+	td, err := s.todos.GetTodo(id, claims.ID)
 	if err == stores.ErrNotFound {
 		return model.Todo{}, router.HttpStatus{Code: http.StatusNotFound, Err: fmt.Errorf("no todo with ID %d", id)}
 	}
@@ -131,12 +148,17 @@ func (s server) handleGetTodo(r *http.Request) (model.Todo, router.HttpStatus) {
 
 // DELETE /api/todo/{id}
 func (s server) handleDeleteTodo(r *http.Request) router.HttpStatus {
+	claims, ok := router.GetClaims(r)
+	if !ok {
+		return router.HttpStatus{Code: 500, Err: errors.New("internal error")}
+	}
+
 	pathValue := r.PathValue("id")
 	id, err := strconv.ParseInt(pathValue, 10, 64)
 	if err != nil {
 		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
 	}
-	err = s.todos.DeleteTodo(int(id))
+	err = s.todos.DeleteTodo(id, claims.ID)
 	if err != nil {
 		return router.HttpStatus{Code: http.StatusInternalServerError, Err: err}
 	}
@@ -145,6 +167,11 @@ func (s server) handleDeleteTodo(r *http.Request) router.HttpStatus {
 
 // PATCH /api/todo/{id}
 func (s server) handlePatchTodo(r *http.Request) router.HttpStatus {
+	claims, ok := router.GetClaims(r)
+	if !ok {
+		return router.HttpStatus{Code: 500, Err: errors.New("internal error")}
+	}
+
 	pathValue := r.PathValue("id")
 	id, err := strconv.ParseInt(pathValue, 10, 64)
 	if err != nil {
@@ -154,7 +181,7 @@ func (s server) handlePatchTodo(r *http.Request) router.HttpStatus {
 	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
 		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
 	}
-	if err := s.todos.UpdateTodo(int(id), t); err != nil {
+	if err := s.todos.UpdateTodo(id, claims.ID, t); err != nil {
 		return router.HttpStatus{Code: http.StatusInternalServerError, Err: err}
 	}
 	return router.HttpStatus{Code: http.StatusOK, Err: nil}
@@ -169,7 +196,30 @@ func (s server) handleGetUsers(r *http.Request) (model.User, router.HttpStatus) 
 	return u, router.HttpStatus{Code: 200, Err: nil}
 }
 
-// POST /login
+// POST /auth/signin
+func (s server) handleSignin(w http.ResponseWriter, r *http.Request) {
+	var u model.NewUser
+	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
+		fail(w, http.StatusBadRequest, "could not read user")
+		return
+	}
+	if err := u.Validate(); err.Err() {
+		fail(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := s.users.CreateUser(u); err != nil {
+		switch err {
+		case stores.ErrUsernameTaken, stores.ErrEmailTaken:
+			fail(w, http.StatusBadRequest, err.Error())
+		default:
+			fail(w, http.StatusInternalServerError, err.Error())
+		}
+		return
+	}
+	w.WriteHeader(201)
+}
+
+// POST /auth/login
 func (s server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	claims, ok := router.GetClaims(r)
 	if !ok {

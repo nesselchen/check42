@@ -62,7 +62,7 @@ type ctxKey struct {
 var keyClaims = ctxKey{"claims"}
 
 type Claims struct {
-	ID   int
+	ID   int64
 	Name string
 }
 
@@ -96,7 +96,7 @@ func ValidateJWT(payload string, secret []byte) (*Claims, error) {
 	if !ok {
 		return nil, errors.New("invalid field 'id'")
 	}
-	claims.ID = int(id)
+	claims.ID = int64(id)
 	sub, ok := raw["sub"].(string)
 	if !ok {
 		return nil, errors.New("invalid field 'sub'")

@@ -3,18 +3,7 @@ package stores
 import (
 	"check42/model"
 	"database/sql"
-	"errors"
 )
-
-type TodoStore interface {
-	GetAllTodos(int) ([]model.Todo, error)
-	UpdateTodo(int, model.Todo) error
-	GetTodo(int) (model.Todo, error)
-	CreateTodo(model.Todo) error
-	DeleteTodo(int) error
-}
-
-var ErrNotFound = errors.New("item not found")
 
 type TodoDB struct {
 	db *sql.DB
@@ -24,20 +13,28 @@ func NewMySQLTodoStore(db *sql.DB) *TodoDB {
 	return &TodoDB{db}
 }
 
-func (store *TodoDB) CreateTodo(t model.Todo) error {
+func (store *TodoDB) CreateTodo(t model.Todo) (int64, error) {
 	due := sql.NullTime{
 		Time: t.Due,
 	}
-	_, err := store.db.Query(`insert into todo (owner, text, done, due) values (?, ?, ?, ?)`, t.Owner, t.Text, t.Done, due)
+	result, err := store.db.Exec(`insert into todo (owner, text, done, due) values (?, ?, ?, ?)`, t.Owner, t.Text, t.Done, due)
+	if err != nil {
+		return 0, err
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	return id, nil
+}
+
+func (store *TodoDB) DeleteTodo(todoID, userID int64) error {
+	_, err := store.db.Query(`delete from todo where id = ? and owner = ?`, todoID, userID)
 	return err
 }
 
-func (store *TodoDB) DeleteTodo(id int) error {
-	_, err := store.db.Query(`delete from todo where id = ?`, id)
-	return err
-}
-
-func (store *TodoDB) GetAllTodos(userID int) ([]model.Todo, error) {
+func (store *TodoDB) GetAllTodos(userID int64) ([]model.Todo, error) {
 	q := `select id, owner, text, done, due, created from todo where owner = ?`
 	rows, err := store.db.Query(q, userID)
 	if err != nil {
@@ -57,8 +54,8 @@ func (store *TodoDB) GetAllTodos(userID int) ([]model.Todo, error) {
 	return tds, nil
 }
 
-func (store *TodoDB) GetTodo(id int) (model.Todo, error) {
-	row := store.db.QueryRow(`select id, owner, text, done, due, created from todo where id = ?`, id)
+func (store *TodoDB) GetTodo(todoID, userID int64) (model.Todo, error) {
+	row := store.db.QueryRow(`select id, owner, text, done, due, created from todo where id = ? and owner = ?`, todoID, userID)
 
 	var t model.Todo
 	var due sql.NullTime
@@ -75,10 +72,10 @@ func (store *TodoDB) GetTodo(id int) (model.Todo, error) {
 	return t, nil
 }
 
-func (store *TodoDB) UpdateTodo(id int, t model.Todo) error {
+func (store *TodoDB) UpdateTodo(todoID, userID int64, t model.Todo) error {
 	due := sql.NullTime{
 		Time: t.Due,
 	}
-	_, err := store.db.Exec(`update todo set text = ?, done = ?, due = ? where id = ?`, t.Text, t.Done, due, id)
+	_, err := store.db.Exec(`update todo set text = ?, done = ?, due = ? where id = ? and owner = ?`, t.Text, t.Done, due, todoID, userID)
 	return err
 }
