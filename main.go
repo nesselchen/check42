@@ -1,13 +1,14 @@
 package main
 
 import (
+	"check42/api"
+	"check42/store/stores"
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
+	"strconv"
 	"time"
-
-	"check42/api"
-	"check42/store/stores"
 
 	"github.com/go-sql-driver/mysql"
 )
@@ -31,7 +32,11 @@ func main() {
 		ParseTime: true,
 	}
 
-	db, err := connectWithRetries(config, 10)
+	maxTries, err := strconv.ParseInt(os.Getenv("DB_MAXRETRIES"), 10, 10)
+	if err != nil {
+		maxTries = 10
+	}
+	db, err := connectWithRetries(config, int(maxTries))
 
 	if err != nil {
 		log.Fatal(err)
