@@ -8,14 +8,14 @@ import (
 type UserStore interface {
 	GetUserByID(id int) (model.User, error)
 	GetUserByName(name string) (model.User, error)
-	CreateUser(model.NewUser) error
+	CreateUser(model.CreateUser) error
 }
 
 type TodoStore interface {
 	GetAllTodos(userID int64) ([]model.Todo, error)
 	UpdateTodo(todoID, userID int64, update model.Todo) error
 	GetTodo(todoID, userID int64) (model.Todo, error)
-	CreateTodo(model.Todo) (int64, error)
+	CreateTodo(t model.CreateTodo) (int64, error)
 	DeleteTodo(todoID, userID int64) error
 }
 

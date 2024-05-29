@@ -37,7 +37,7 @@ func (store UserDB) GetUserByName(name string) (model.User, error) {
 	return u, nil
 }
 
-func (store UserDB) CreateUser(u model.NewUser) error {
+func (store UserDB) CreateUser(u model.CreateUser) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err

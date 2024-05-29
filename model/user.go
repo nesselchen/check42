@@ -13,13 +13,13 @@ type User struct {
 	Created      time.Time
 }
 
-type NewUser struct {
+type CreateUser struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-func (u NewUser) Validate() router.ValidationErr {
+func (u CreateUser) Validate() router.ValidationErr {
 	err := router.NewValidationErr()
 	if u.Email == "" {
 		err.Hint("email", router.HintEmptyString)

@@ -13,7 +13,7 @@ func NewMySQLTodoStore(db *sql.DB) *TodoDB {
 	return &TodoDB{db}
 }
 
-func (store *TodoDB) CreateTodo(t model.Todo) (int64, error) {
+func (store *TodoDB) CreateTodo(t model.CreateTodo) (int64, error) {
 	due := sql.NullTime{
 		Time: t.Due,
 	}

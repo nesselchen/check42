@@ -64,6 +64,7 @@ func RunServer(addr string, todos stores.TodoStore, users stores.UserStore) {
 
 	todoId.OnGet(router.Process(s.handleGetTodo))
 	todoId.OnDelete(router.ProcessWithoutResponseBody(s.handleDeleteTodo))
+	todoId.OnPut(router.ProcessWithoutResponseBody(s.handlePutTodo))
 	todoId.OnPatch(router.ProcessWithoutResponseBody(s.handlePatchTodo))
 
 	log.Fatal(router.ListenAndServe(s.addr, base))
@@ -107,7 +108,7 @@ func (s server) handlePostTodo(r *http.Request) (int64, router.HttpStatus) {
 		return 0, router.HttpStatus{Code: 500, Err: errors.New("internal error")}
 	}
 
-	var todo model.Todo
+	var todo model.CreateTodo
 	err := json.NewDecoder(r.Body).Decode(&todo)
 	if err != nil {
 		return 0, router.HttpStatus{Code: http.StatusBadRequest, Err: err}
@@ -165,8 +166,8 @@ func (s server) handleDeleteTodo(r *http.Request) router.HttpStatus {
 	return router.HttpStatus{Code: http.StatusOK, Err: nil}
 }
 
-// PATCH /api/todo/{id}
-func (s server) handlePatchTodo(r *http.Request) router.HttpStatus {
+// PUT /api/todo/{id}
+func (s server) handlePutTodo(r *http.Request) router.HttpStatus {
 	claims, ok := router.GetClaims(r)
 	if !ok {
 		return router.HttpStatus{Code: 500, Err: errors.New("internal error")}
@@ -181,6 +182,7 @@ func (s server) handlePatchTodo(r *http.Request) router.HttpStatus {
 	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
 		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
 	}
+
 	if err := s.todos.UpdateTodo(id, claims.ID, t); err != nil {
 		return router.HttpStatus{Code: http.StatusInternalServerError, Err: err}
 	}
@@ -198,7 +200,7 @@ func (s server) handleGetUsers(r *http.Request) (model.User, router.HttpStatus) 
 
 // POST /auth/signin
 func (s server) handleSignin(w http.ResponseWriter, r *http.Request) {
-	var u model.NewUser
+	var u model.CreateUser
 	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
 		fail(w, http.StatusBadRequest, "could not read user")
 		return
@@ -247,6 +249,37 @@ func (s server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.WriteString(w, signed)
+}
+
+// PATCH /api/todo/{id}
+func (s server) handlePatchTodo(r *http.Request) router.HttpStatus {
+	claims, ok := router.GetClaims(r)
+	if !ok {
+		return router.HttpStatus{Code: http.StatusInternalServerError, Err: errors.New("internal error")}
+	}
+
+	pathValue := r.PathValue("id")
+	id, err := strconv.ParseInt(pathValue, 10, 64)
+	if err != nil {
+		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
+	}
+
+	todo, err := s.todos.GetTodo(id, claims.ID)
+	if err != nil {
+		return router.HttpStatus{Code: http.StatusInternalServerError, Err: errors.New("internal error")}
+	}
+	if val := r.URL.Query().Get("done"); val != "" {
+		done, err := strconv.ParseBool(val)
+		if err != nil {
+			return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
+		}
+		todo.Done = done
+	}
+	if val := r.URL.Query().Get("text"); val != "" {
+		todo.Text = val
+	}
+	s.todos.UpdateTodo(todo.ID, todo.Owner, todo)
+	return router.HttpStatus{Code: http.StatusOK, Err: nil}
 }
 
 func fail(w http.ResponseWriter, status int, msg string) {

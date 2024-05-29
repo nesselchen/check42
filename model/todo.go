@@ -14,7 +14,14 @@ type Todo struct {
 	Created time.Time `json:"created"`
 }
 
-func (t Todo) ValidateNew() router.ValidationErr {
+type CreateTodo struct {
+	Owner int64     `json:"owner"`
+	Text  string    `json:"text"`
+	Done  bool      `json:"done"`
+	Due   time.Time `json:"due"`
+}
+
+func (t CreateTodo) ValidateNew() router.ValidationErr {
 	err := router.NewValidationErr()
 	if t.Text == "" {
 		err.Hint("text", router.HintEmptyString)
