@@ -38,6 +38,7 @@ func validateJWTAuth(payload string, secret []byte) (bool, *router.Claims) {
 }
 
 func (a ApiAuthority) validateBasicAuth(payload string) (bool, *router.Claims) {
+
 	username, password, success := decodeBasicAuth(payload)
 	if !success {
 		return false, nil

@@ -8,8 +8,12 @@ import (
 	"net/http"
 )
 
+// Allows processing a request by returning only result, status code and error
+// but without needing to interface with the response.
 type ProcessFunc[T any] func(*http.Request) (T, HttpStatus)
 
+// Allows processing a request by returning only status code and error
+// but without needing to interface with the response.
 type NoValueProcessFunc func(*http.Request) HttpStatus
 
 type HttpStatus struct {
@@ -17,10 +21,14 @@ type HttpStatus struct {
 	Err  error
 }
 
+// Wrap a ProcessFunc in Process to handle the error that might be returned
+// from HttpStatus that is return from a ProcessFunc without interfacing with
+// the response directly. JSON serialization is done automatically.
 func Process[T any](p ProcessFunc[T]) http.HandlerFunc {
 	return process(p, true)
 }
 
+// Same as Process but without returning a body in the response.
 func ProcessWithoutResponseBody(n NoValueProcessFunc) http.HandlerFunc {
 	p := func(r *http.Request) (struct{}, HttpStatus) {
 		status := n(r)
@@ -60,6 +68,7 @@ type route struct {
 	registered  bool
 }
 
+// Create a new base path that maps to the given path.
 func New(path string) *route {
 	return &route{
 		path:        path,
@@ -70,34 +79,46 @@ func New(path string) *route {
 	}
 }
 
+// Registers GET method handler for the receiving route
 func (route *route) OnGet(handler http.HandlerFunc) {
 	route.addHandler("GET", handler)
 }
 
+// Registers PUT method handler for the receiving route
 func (route *route) OnPut(handler http.HandlerFunc) {
 	route.addHandler("PUT", handler)
 }
 
+// Registers POST method handler for the receiving route
 func (route *route) OnPost(handler http.HandlerFunc) {
 	route.addHandler("POST", handler)
 }
 
+// Registers DELETE method handler for the receiving route
 func (route *route) OnDelete(handler http.HandlerFunc) {
 	route.addHandler("DELETE", handler)
 }
 
+// Registers PATCH method handler for the receiving route
 func (route *route) OnPatch(handler http.HandlerFunc) {
 	route.addHandler("PATCH", handler)
 }
 
+// Create a subroute starting at the receiving routes path.
+// The final route string is created by adding the parent's path
+// before that of the new subroute.
+// This is done recursively.
 func (route *route) Subroute(path string) *route {
 	r := New(path)
 	route.subroutes = append(route.subroutes, r)
 	return r
 }
 
-func (route *route) Use(m ...Middleware) {
-	route.middlewares = append(route.middlewares, m...)
+// Register a middleware for this route and all its subroutes.
+// To avoid this propagation, create a new route via New() starting
+// at the desired path.
+func (route *route) Use(m Middleware) {
+	route.middlewares = append(route.middlewares, m)
 }
 
 func (route *route) addHandler(method string, handler http.HandlerFunc) {
@@ -116,31 +137,27 @@ func (route *route) registerHandlers(mux *http.ServeMux, prefixPath string) {
 	route.registered = true
 
 	if len(route.handlers) != 0 {
+
 		fmt.Printf("| Registered methods for path %-15s", fullPath)
 		for method := range route.handlers {
 			fmt.Printf(" | %-6s", method)
 		}
 		fmt.Println(" |")
+
 		handler := func(w http.ResponseWriter, r *http.Request) {
-			for _, mw := range route.middlewares {
-				var status HttpStatus
-				r, status = mw(r)
-				if status.Code >= 400 {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(status.Code)
-					if err := status.Err; err != nil {
-						io.WriteString(w, fmt.Sprintf(`{"error": "%s"}`, err))
-					}
-					return
-				}
-			}
 			if handler, ok := route.handlers[r.Method]; ok {
 				handler(w, r)
 			} else {
 				w.WriteHeader(http.StatusMethodNotAllowed)
 			}
 		}
+
+		for _, middleware := range route.middlewares {
+			handler = middleware(handler)
+		}
+
 		mux.HandleFunc(fullPath, handler)
+
 	} else if len(route.subroutes) == 0 {
 		log.Fatalf(`Path "%s" has no handlers`, fullPath)
 	}
@@ -151,6 +168,8 @@ func (route *route) registerHandlers(mux *http.ServeMux, prefixPath string) {
 	}
 }
 
+// Registers the given handler and propagates middlewares to subroutes.
+// To avoid this propapation, create different base routes and attach them separately
 func ListenAndServe(addr string, routes ...*route) error {
 	mux := http.NewServeMux()
 	fmt.Println("Starting server on", addr)

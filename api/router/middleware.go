@@ -3,54 +3,73 @@ package router
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v4"
 )
 
-type Middleware func(*http.Request) (*http.Request, HttpStatus)
+type Preware func(*http.Request) (*http.Request, HttpStatus)
+type Middleware func(http.HandlerFunc) http.HandlerFunc
 
 type Authority interface {
 	Authorize(scheme string, payload string) (bool, *Claims)
 }
 
+func LogCall(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		fmt.Println("Called:", path)
+		next(w, r)
+	}
+}
+
 func BasicAuth(authority Authority) Middleware {
-	return generalAuth(authority, "basic")
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			header, ok := r.Header["Authorization"]
+			if !ok {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			for _, val := range header {
+				// sample header: 'Basic YWRtaW46YWRtaW4='
+				split := strings.SplitN(val, " ", 2)
+				if len(split) != 2 {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				if strings.ToLower(split[0]) != "basic" {
+					continue
+				}
+				if success, claims := authority.Authorize("basic", split[1]); success {
+					ctx := context.WithValue(r.Context(), keyClaims, claims)
+					next.ServeHTTP(w, r.WithContext(ctx))
+					return
+				}
+			}
+			w.WriteHeader(http.StatusUnauthorized)
+		}
+	}
 }
 
 func JWTAuth(authority Authority) Middleware {
-	return generalAuth(authority, "bearer")
-}
-
-func generalAuth(authority Authority, scheme string) Middleware {
-	return func(r *http.Request) (*http.Request, HttpStatus) {
-		header, ok := r.Header["Authorization"]
-		if !ok {
-			return r, HttpStatus{
-				Code: http.StatusUnauthorized,
-				Err:  errors.New("missing header 'Authorization'"),
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			c, err := r.Cookie("jwt")
+			if err == http.ErrNoCookie {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
 			}
-		}
-
-		for _, val := range header {
-			// sample header: 'Basic YWRtaW46YWRtaW4='
-			split := strings.SplitN(val, " ", 2)
-			if len(split) != 2 {
-				return r, HttpStatus{Code: http.StatusBadRequest, Err: errors.New("'malformed header")}
-			}
-			if strings.ToLower(split[0]) != scheme {
-				continue
-			}
-			if success, claims := authority.Authorize(scheme, split[1]); success {
+			jwt := c.Value
+			if success, claims := authority.Authorize("bearer", jwt); success {
 				ctx := context.WithValue(r.Context(), keyClaims, claims)
-				return r.WithContext(ctx), HttpStatus{200, nil}
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
 			}
-		}
-
-		return r, HttpStatus{
-			Code: http.StatusUnauthorized,
-			Err:  errors.New("unsupported authorization scheme"),
+			w.WriteHeader(http.StatusUnauthorized)
 		}
 	}
 }

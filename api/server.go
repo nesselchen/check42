@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v4"
@@ -40,6 +41,8 @@ func RunServer(addr string, todos stores.TodoStore, users stores.UserStore) {
 
 	base := router.New("/")
 
+	assets := base.Subroute("static/")
+
 	auth := base.Subroute("auth")
 
 	signin := auth.Subroute("/signin")
@@ -57,7 +60,8 @@ func RunServer(addr string, todos stores.TodoStore, users stores.UserStore) {
 	user := api.Subroute("/user")
 	user.OnGet(router.Process(s.handleGetUsers))
 
-	// base.OnGet(s.templateHtml)
+	base.OnGet(handleBase)
+	assets.OnGet(handleStatic)
 
 	todo.OnPost(router.Process(s.handlePostTodo))
 	todo.OnGet((router.Process(s.handleGetTodos)))
@@ -67,26 +71,29 @@ func RunServer(addr string, todos stores.TodoStore, users stores.UserStore) {
 	todoId.OnPut(router.ProcessWithoutResponseBody(s.handlePutTodo))
 	todoId.OnPatch(router.ProcessWithoutResponseBody(s.handlePatchTodo))
 
+	base.Use(router.LogCall)
 	log.Fatal(router.ListenAndServe(s.addr, base))
 }
 
-// // GET /
-// func (s server) templateHtml(w http.ResponseWriter, r *http.Request) {
-// 	tmpl, err := template.New("index.html.tmpl").ParseFiles("templates/index.html.tmpl")
-// 	if err != nil {
-// 		w.WriteHeader(500)
-// 		return
-// 	}
-// 	todos, err := s.todos.GetAllTodos()
-// 	if err != nil {
-// 		w.WriteHeader(500)
-// 		return
-// 	}
-// 	if err := tmpl.Execute(w, todos); err != nil {
-// 		w.WriteHeader(500)
-// 		return
-// 	}
-// }
+// GET /
+func handleBase(w http.ResponseWriter, r *http.Request) {
+	html, err := os.ReadFile("static/frontend/index.html")
+	if err != nil {
+		log.Fatal("Frontend files are missing")
+	}
+	io.WriteString(w, string(html))
+}
+
+// GET /static/{path}
+func handleStatic(w http.ResponseWriter, r *http.Request) {
+	path, ok := strings.CutPrefix(r.URL.Path, "/static/")
+	file, err := os.ReadFile("./static/" + path)
+	if !ok || err != nil {
+		fail(w, 404, "file not found")
+		return
+	}
+	io.WriteString(w, string(file))
+}
 
 // GET /api/todo
 func (s server) handleGetTodos(r *http.Request) ([]model.Todo, router.HttpStatus) {
@@ -248,7 +255,13 @@ func (s server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	io.WriteString(w, signed)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "jwt",
+		Value:    signed,
+		Expires:  time.Now().Add(week),
+		HttpOnly: true,
+		Path:     "/",
+	})
 }
 
 // PATCH /api/todo/{id}
