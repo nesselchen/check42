@@ -28,7 +28,7 @@ func (store UserDB) GetUserByID(id int) (model.User, error) {
 }
 
 func (store UserDB) GetUserByName(name string) (model.User, error) {
-	row := store.db.QueryRow(`select * from user where name = ?`, name)
+	row := store.db.QueryRow(`select * from user`)
 	var u model.User
 	err := row.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Created)
 	if err != nil {

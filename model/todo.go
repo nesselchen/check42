@@ -10,15 +10,13 @@ type Todo struct {
 	Owner   int64     `json:"owner"`
 	Text    string    `json:"text"`
 	Done    bool      `json:"done"`
-	Due     time.Time `json:"due"`
 	Created time.Time `json:"created"`
 }
 
 type CreateTodo struct {
-	Owner int64     `json:"owner"`
-	Text  string    `json:"text"`
-	Done  bool      `json:"done"`
-	Due   time.Time `json:"due"`
+	Owner int64  `json:"owner"`
+	Text  string `json:"text"`
+	Done  bool   `json:"done"`
 }
 
 func (t CreateTodo) ValidateNew() router.ValidationErr {
