@@ -17,6 +17,7 @@ type TodoStore interface {
 	GetTodo(todoID, userID int64) (model.Todo, error)
 	CreateTodo(t model.CreateTodo) (int64, error)
 	DeleteTodo(todoID, userID int64) error
+	CreateCategory(name string, userID int64) (int64, error)
 }
 
 var (

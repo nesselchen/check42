@@ -6,7 +6,6 @@ import (
 	"check42/store/stores"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -48,6 +47,7 @@ func RunServer(addr string, todos stores.TodoStore, users stores.UserStore) {
 	api := base.Subroute("api")
 	todo := api.Subroute("/todo")
 	todoId := todo.Subroute("/{id}")
+	category := todo.Subroute("/category")
 
 	// middlewares
 	base.Use(router.LogCall)
@@ -69,6 +69,8 @@ func RunServer(addr string, todos stores.TodoStore, users stores.UserStore) {
 	todoId.OnDelete(router.ProcessWithoutResponseBody(s.handleDeleteTodo))
 	todoId.OnPut(router.ProcessWithoutResponseBody(s.handlePutTodo))
 	todoId.OnPatch(router.ProcessWithoutResponseBody(s.handlePatchTodo))
+
+	category.OnPost(router.Process(s.handlePostCategory))
 
 	log.Fatal(router.ListenAndServe(s.addr, base))
 }
@@ -127,7 +129,27 @@ func (s server) handlePostTodo(r *http.Request) (int64, router.HttpStatus) {
 	if err != nil {
 		return 0, router.HttpStatus{Code: 500, Err: err}
 	}
-	return id, router.HttpStatus{Code: 201, Err: nil}
+	return id, statusCreated
+}
+
+// POST /api/todo/category?name={name}
+func (s server) handlePostCategory(r *http.Request) (int64, router.HttpStatus) {
+	claims, ok := router.GetClaims(r)
+	if !ok {
+		return 0, router.HttpStatus{Code: 500, Err: errors.New("internal error")}
+	}
+
+	name := r.URL.Query().Get("name")
+	if name == "" {
+		return 0, badRequestCause(errors.New("missing field 'category'"))
+	}
+
+	id, err := s.todos.CreateCategory(name, claims.ID)
+	if err != nil {
+		return 0, internalErrorCause(err)
+	}
+
+	return id, statusOK
 }
 
 // GET /api/todo/{id}
@@ -140,33 +162,33 @@ func (s server) handleGetTodo(r *http.Request) (model.Todo, router.HttpStatus) {
 	pathValue := r.PathValue("id")
 	id, err := strconv.ParseInt(pathValue, 10, 64)
 	if err != nil {
-		return model.Todo{}, router.HttpStatus{Code: http.StatusBadRequest, Err: err}
+		return model.Todo{}, badRequestCause(err)
 	}
 	td, err := s.todos.GetTodo(id, claims.ID)
 	if err == stores.ErrNotFound {
-		return model.Todo{}, router.HttpStatus{Code: http.StatusNotFound, Err: fmt.Errorf("no todo with ID %d", id)}
+		return model.Todo{}, notFound(id)
 	}
 	if err != nil {
-		return model.Todo{}, router.HttpStatus{Code: http.StatusInternalServerError}
+		return model.Todo{}, internalErrorCause(err)
 	}
-	return td, router.HttpStatus{Code: http.StatusOK, Err: nil}
+	return td, statusOK
 }
 
 // DELETE /api/todo/{id}
 func (s server) handleDeleteTodo(r *http.Request) router.HttpStatus {
 	claims, ok := router.GetClaims(r)
 	if !ok {
-		return router.HttpStatus{Code: 500, Err: errors.New("internal error")}
+		return internalError
 	}
 
 	pathValue := r.PathValue("id")
 	id, err := strconv.ParseInt(pathValue, 10, 64)
 	if err != nil {
-		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
+		return badRequestCause(err)
 	}
 	err = s.todos.DeleteTodo(id, claims.ID)
 	if err != nil {
-		return router.HttpStatus{Code: http.StatusInternalServerError, Err: err}
+		return internalErrorCause(err)
 	}
 	return router.HttpStatus{Code: http.StatusOK, Err: nil}
 }
@@ -175,21 +197,21 @@ func (s server) handleDeleteTodo(r *http.Request) router.HttpStatus {
 func (s server) handlePutTodo(r *http.Request) router.HttpStatus {
 	claims, ok := router.GetClaims(r)
 	if !ok {
-		return router.HttpStatus{Code: 500, Err: errors.New("internal error")}
+		return internalError
 	}
 
 	pathValue := r.PathValue("id")
 	id, err := strconv.ParseInt(pathValue, 10, 64)
 	if err != nil {
-		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
+		return badRequestCause(err)
 	}
 	var t model.Todo
 	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
-		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
+		return badRequestCause(err)
 	}
 
 	if err := s.todos.UpdateTodo(id, claims.ID, t); err != nil {
-		return router.HttpStatus{Code: http.StatusInternalServerError, Err: err}
+		return internalErrorCause(err)
 	}
 	return router.HttpStatus{Code: http.StatusOK, Err: nil}
 }
@@ -257,23 +279,23 @@ func (s server) handleLogin(w http.ResponseWriter, r *http.Request) {
 func (s server) handlePatchTodo(r *http.Request) router.HttpStatus {
 	claims, ok := router.GetClaims(r)
 	if !ok {
-		return router.HttpStatus{Code: http.StatusInternalServerError, Err: errors.New("internal error")}
+		return internalError
 	}
 
 	pathValue := r.PathValue("id")
 	id, err := strconv.ParseInt(pathValue, 10, 64)
 	if err != nil {
-		return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
+		return badRequestCause(err)
 	}
 
 	todo, err := s.todos.GetTodo(id, claims.ID)
 	if err != nil {
-		return router.HttpStatus{Code: http.StatusInternalServerError, Err: errors.New("internal error")}
+		return internalError
 	}
 	if val := r.URL.Query().Get("done"); val != "" {
 		done, err := strconv.ParseBool(val)
 		if err != nil {
-			return router.HttpStatus{Code: http.StatusBadRequest, Err: err}
+			return badRequestCause(err)
 		}
 		todo.Done = done
 	}
@@ -282,10 +304,4 @@ func (s server) handlePatchTodo(r *http.Request) router.HttpStatus {
 	}
 	s.todos.UpdateTodo(todo.ID, todo.Owner, todo)
 	return router.HttpStatus{Code: http.StatusOK, Err: nil}
-}
-
-func fail(w http.ResponseWriter, status int, msg string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	io.WriteString(w, msg)
 }
