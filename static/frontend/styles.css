@@ -5,34 +5,6 @@
 * {
     margin: 0;
     padding: 0;
-
-    :hover {
-        outline: black 1px solid;
-    }
-}
-
-header {
-    font-style: bold;
-    background-color: rgb(3, 156, 207);
-    padding: 2em;
-    cursor: default;
-    display: flex;
-    justify-content: center;
-}
-
-.todo-form input {
-    color: white;
-    justify-content: space-between;
-    background-color: inherit;
-    
-    font-size: larger;
-    border: none;
-    padding: 10px 20px;
-    cursor: text;
-}
-
-.todo-form input:focus {
-    outline: none;
 }
 
 ::placeholder {
@@ -43,6 +15,34 @@ header {
 ::-ms-input-placeholder { /* Edge 12 -18 */
     color: white;
     opacity: 0.6;
+}
+
+header {
+    font-style: bold;
+    background-color: rgb(3, 156, 207);
+    padding: 2em;
+    cursor: default;
+    display: flex;
+    justify-content: space-evenly;
+}
+
+.todo-form {
+    width: 80%;
+}
+
+.todo-form input {
+    color: white;
+    background-color: inherit;
+    width: 100%;
+    
+    font-size: x-large;
+    border: none;
+    padding: 10px 20px;
+    cursor: text;
+}
+
+.todo-form input:focus {
+    outline: none;
 }
 
 main {

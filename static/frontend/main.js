@@ -63,16 +63,20 @@ const TodoComponent = (id, text, done) => {
 }
 
 async function initializePage() {
-    const res = await fetch("/api/todo")
+    let res = await fetch("/api/todo")
     if (res.status == 401) {
         const username = prompt("You're not logged in. What's your username?")
         const password = prompt("And now your password?")
         await loginUser(username, password)
-        initializePage()
-    } else {
-        const todos = await res.json()
-        registerTodos(todos)
+
+        res = await fetch("/api/todo")
+        if (res.status == 401) {
+            alert("Something's not right. Try refreshing the page.")
+            return
+        }
     }
+    const todos = await res.json()
+    registerTodos(todos)
 }
 
 function registerTodos(todos) {
@@ -98,14 +102,15 @@ async function deleteTodo(id) {
 }
 
 // TODO: how does a user login?
-function loginUser(username, password) {
+async function loginUser(username, password) {
     const encoded = btoa(username + ":" + password) 
-    return fetch("/auth/login", {
+    const res = await fetch("/auth/login", {
         method: "POST",
         headers: {
             Authorization: `Basic ${encoded}`,
         },
-    }) 
+    })
+    return res.status < 400
 }
 
 query(".todo-form").addEventListener("submit", e => {
