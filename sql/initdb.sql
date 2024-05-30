@@ -13,6 +13,7 @@ create table if not exists `user` (
     unique (`email`)
 );
 
+
 create table if not exists `todo`(
     `id` int not null auto_increment,
     `owner` int not null,
@@ -20,14 +21,13 @@ create table if not exists `todo`(
     `done` boolean default 0,
     `created` datetime default current_timestamp,
     primary key (`id`),
-    foreign key (`owner`) references user(`id`)
+    foreign key (`owner`) references `user` (`id`)
 );
 
+
 insert into user (`name`, `email`, `password_hash`) values
-    ("admin", "admin@adm.in", "$2a$10$tYtiAnVF2EJ6WPT894/YaO.VoQ08sknhVSa2jT0Sac1bvK2AgWeN.");
+    ("admin", "admin@adm.in", "$2a$10$vPibycoXtT9WGUAEHrF/LeU.X2GM3UC4/mx8av2o63M5rXtQgDsw2");
     
 insert into todo (`owner`, `text`) values
-    (1, "Input validation"),
-    (1, "User authentication"),
-    (1, "Frontend client"),
-    (1, "Testing");
+    (1, "Error formatting"),
+    (1, "Todo sharing");
