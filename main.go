@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 )
 
 var logo string = `
@@ -23,18 +24,23 @@ var logo string = `
 `
 
 func main() {
+	godotenv.Load()
+
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+
 	config := mysql.Config{
-		User:      "root",
-		Passwd:    "root",
+		User:      os.Getenv("DB_USER"),
+		Passwd:    os.Getenv("DB_PASSWORD"),
 		Net:       "tcp",
-		Addr:      "localhost:3306",
+		Addr:      dbHost + ":" + dbPort,
 		DBName:    "check42",
 		ParseTime: true,
 	}
 
-	maxTries, err := strconv.ParseInt(os.Getenv("DB_MAXRETRIES"), 10, 10)
+	maxTries, err := strconv.ParseInt(os.Getenv("DB_RETRIES"), 10, 10)
 	if err != nil {
-		maxTries = 10
+		log.Fatal("missing .env file")
 	}
 	db, err := connectWithRetries(config, int(maxTries))
 
@@ -48,7 +54,11 @@ func main() {
 	users := stores.NewMySQLUserStore(db)
 
 	fmt.Println(logo)
-	api.RunServer("127.0.0.1:2442", todos, users)
+
+	host := os.Getenv("SERVER_HOST")
+	port := os.Getenv("SERVER_PORT")
+
+	api.RunServer(host+":"+port, todos, users)
 }
 
 func connectWithRetries(config mysql.Config, maxTries int) (*sql.DB, error) {

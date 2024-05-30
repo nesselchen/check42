@@ -13,10 +13,5 @@ services:
     build: .
     depends_on:
       - mysql
-    environment:
-      - DB_HOST=mysql
-      - DB_PORT=3306
-      - DB_USER=root
-      - DB_PASSWORD=root
     ports:
       - "2442:2442"
