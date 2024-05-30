@@ -16,7 +16,6 @@ import (
 	"time"
 
 	jwt "github.com/golang-jwt/jwt/v4"
-	"github.com/joho/godotenv"
 )
 
 type server struct {
@@ -28,37 +27,37 @@ type server struct {
 func RunServer(addr string, todos stores.TodoStore, users stores.UserStore) {
 	s := &server{addr, todos, users}
 
-	godotenv.Load()
-
 	secret, found := os.LookupEnv("JWT_SECRET")
 	if !found {
 		log.Fatal("Fatal error: missing environment variable 'JWT_SECRET'")
 	}
 	authority := ApiAuthority{
-		users,
-		[]byte(secret),
+		store:     users,
+		jwtSecret: []byte(secret),
+		pwSalt:    os.Getenv("PW_SALT"),
 	}
 
+	// routes
 	base := router.New("/")
-
 	assets := base.Subroute("static/")
 
 	auth := base.Subroute("auth")
-
 	signin := auth.Subroute("/signin")
-	signin.OnPost(s.handleSignin)
-
 	login := auth.Subroute("/login")
-	login.OnPost(s.handleLogin)
-	login.Use(router.BasicAuth(authority))
 
 	api := base.Subroute("api")
-	api.Use(router.JWTAuth(authority))
 	todo := api.Subroute("/todo")
 	todoId := todo.Subroute("/{id}")
 
-	user := api.Subroute("/user")
-	user.OnGet(router.Process(s.handleGetUsers))
+	// middlewares
+	base.Use(router.LogCall)
+	login.Use(router.BasicAuth(authority))
+	api.Use(router.JWTAuth(authority))
+
+	// handlers
+	signin.OnPost(s.handleSignin)
+
+	login.OnPost(s.handleLogin)
 
 	base.OnGet(handleBase)
 	assets.OnGet(handleStatic)
@@ -71,7 +70,6 @@ func RunServer(addr string, todos stores.TodoStore, users stores.UserStore) {
 	todoId.OnPut(router.ProcessWithoutResponseBody(s.handlePutTodo))
 	todoId.OnPatch(router.ProcessWithoutResponseBody(s.handlePatchTodo))
 
-	base.Use(router.LogCall)
 	log.Fatal(router.ListenAndServe(s.addr, base))
 }
 
@@ -194,15 +192,6 @@ func (s server) handlePutTodo(r *http.Request) router.HttpStatus {
 		return router.HttpStatus{Code: http.StatusInternalServerError, Err: err}
 	}
 	return router.HttpStatus{Code: http.StatusOK, Err: nil}
-}
-
-// GET /api/user
-func (s server) handleGetUsers(r *http.Request) (model.User, router.HttpStatus) {
-	u, err := s.users.GetUserByID(1)
-	if err != nil {
-		return model.User{}, router.HttpStatus{Code: http.StatusNotFound, Err: err}
-	}
-	return u, router.HttpStatus{Code: 200, Err: nil}
 }
 
 // POST /auth/signin

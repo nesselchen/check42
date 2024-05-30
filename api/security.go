@@ -11,8 +11,9 @@ import (
 )
 
 type ApiAuthority struct {
-	store  stores.UserStore
-	secret []byte
+	store     stores.UserStore
+	jwtSecret []byte
+	pwSalt    string
 }
 
 func (a ApiAuthority) Authorize(scheme, payload string) (bool, *router.Claims) {
@@ -50,7 +51,7 @@ func (a ApiAuthority) validateBasicAuth(payload string) (bool, *router.Claims) {
 	}
 
 	// no error means password was correct
-	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(username+password+a.pwSalt))
 	if err != nil {
 		return false, nil
 	}

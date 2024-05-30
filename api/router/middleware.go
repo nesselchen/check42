@@ -10,7 +10,6 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-type Preware func(*http.Request) (*http.Request, HttpStatus)
 type Middleware func(http.HandlerFunc) http.HandlerFunc
 
 type Authority interface {
@@ -19,8 +18,7 @@ type Authority interface {
 
 func LogCall(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-		fmt.Println("Called:", path)
+		fmt.Println(r.Method, r.URL.Path)
 		next(w, r)
 	}
 }
@@ -46,7 +44,7 @@ func BasicAuth(authority Authority) Middleware {
 				}
 				if success, claims := authority.Authorize("basic", split[1]); success {
 					ctx := context.WithValue(r.Context(), keyClaims, claims)
-					next.ServeHTTP(w, r.WithContext(ctx))
+					next(w, r.WithContext(ctx))
 					return
 				}
 			}
@@ -66,7 +64,7 @@ func JWTAuth(authority Authority) Middleware {
 			jwt := c.Value
 			if success, claims := authority.Authorize("bearer", jwt); success {
 				ctx := context.WithValue(r.Context(), keyClaims, claims)
-				next.ServeHTTP(w, r.WithContext(ctx))
+				next(w, r.WithContext(ctx))
 				return
 			}
 			w.WriteHeader(http.StatusUnauthorized)

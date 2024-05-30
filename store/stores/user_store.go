@@ -4,6 +4,7 @@ import (
 	"check42/model"
 	"database/sql"
 	"errors"
+	"os"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -28,7 +29,7 @@ func (store UserDB) GetUserByID(id int) (model.User, error) {
 }
 
 func (store UserDB) GetUserByName(name string) (model.User, error) {
-	row := store.db.QueryRow(`select * from user`)
+	row := store.db.QueryRow(`select * from user where name = ?`, name)
 	var u model.User
 	err := row.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Created)
 	if err != nil {
@@ -38,7 +39,8 @@ func (store UserDB) GetUserByName(name string) (model.User, error) {
 }
 
 func (store UserDB) CreateUser(u model.CreateUser) error {
-	hash, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
+	salt := os.Getenv("PW_SALT")
+	hash, err := bcrypt.GenerateFromPassword([]byte(u.Name+u.Password+salt), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}

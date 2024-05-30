@@ -176,5 +176,6 @@ func ListenAndServe(addr string, routes ...*route) error {
 	for _, r := range routes {
 		r.registerHandlers(mux, "")
 	}
+	fmt.Println()
 	return http.ListenAndServe(addr, mux)
 }
