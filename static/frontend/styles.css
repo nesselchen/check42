@@ -1,0 +1,92 @@
+:root {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+
+    :hover {
+        outline: black 1px solid;
+    }
+}
+
+header {
+    font-style: bold;
+    background-color: rgb(3, 156, 207);
+    padding: 2em;
+    cursor: default;
+    display: flex;
+    justify-content: center;
+}
+
+.todo-form input {
+    color: white;
+    justify-content: space-between;
+    background-color: inherit;
+    
+    font-size: larger;
+    border: none;
+    padding: 10px 20px;
+    cursor: text;
+}
+
+.todo-form input:focus {
+    outline: none;
+}
+
+::placeholder {
+    color: white;
+    opacity: 0.6;
+}
+  
+::-ms-input-placeholder { /* Edge 12 -18 */
+    color: white;
+    opacity: 0.6;
+}
+
+main {
+    margin: 0 10%;
+}
+
+.todo {
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: inherit;
+    margin-top: 10px;
+}
+
+.todo:hover {
+    background-color: rgb(128, 128, 128);
+    color: white;
+}
+
+.todo.done {
+    color: lightgray;
+    text-decoration-line: line-through;
+}
+
+.todo-text {
+    padding-left: 10px;
+}
+
+button {
+    background-color: inherit;
+    color: inherit;
+    border: none;
+    padding: 10px 20px;
+    cursor: pointer;
+    text-align: center;
+    display: inline-block;
+    outline: none;
+}
+
+button:hover {
+    background-color: #bbb;
+}
+
+button:active {
+    background-color: #aaa;
+}
