@@ -8,6 +8,8 @@ COPY api        ./api/
 COPY templates  ./templates/
 COPY model      ./model/
 COPY store      ./store/
+COPY static     ./static/
+COPY .env       ./
 
 # RUN go mod download
 
