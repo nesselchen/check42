@@ -27,10 +27,11 @@ header {
 }
 
 .todo-form {
+    display: flex;
     width: 80%;
 }
 
-.todo-form input {
+.todo-form input,select {
     color: white;
     background-color: inherit;
     width: 100%;
@@ -41,7 +42,13 @@ header {
     cursor: text;
 }
 
-.todo-form input:focus {
+option {
+    color: rgb(3, 156, 207);
+    padding: 0.5em;
+    margin: 0.5em;
+}
+
+.todo-form input,select:focus {
     outline: none;
 }
 
@@ -49,7 +56,7 @@ main {
     margin: 0 10%;
 }
 
-.todo {
+li {
     list-style: none;
     display: flex;
     justify-content: space-between;
@@ -58,9 +65,17 @@ main {
     margin-top: 10px;
 }
 
+.category {
+    margin: 3em 0 2.5em;
+    font-weight: bold;
+}
+
+.todo {
+    font-weight: normal;
+}
+
 .todo:hover {
-    background-color: rgb(128, 128, 128);
-    color: white;
+    background-color: rgb(243, 243, 243);
 }
 
 .todo.done {
