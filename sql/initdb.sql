@@ -37,13 +37,18 @@ insert into `user` (`name`, `email`, `password_hash`) values
     ("admin", "admin@adm.in", "$2a$10$vPibycoXtT9WGUAEHrF/LeU.X2GM3UC4/mx8av2o63M5rXtQgDsw2");
 
 insert into `todo_category` (`name`, `owner`) values
-	("My tasks", 1),
-    ("Urgent", 1);
+    ("At home", 1),
+    ("Practice", 1);
 
 insert into `todo` (`owner`, `text`, `category`) values
     (1, "Laundry", 1),
-    (1, "Dishes", 2);
+    (1, "Sleep", 1),
+    (1, "Feed the rats", 1),
+    (1, "Dishes", 1),
+    (1, "goqu", 2),
+    (1, "PHP", 2),
+    (1, "Fizz midlane", 2);
 
 insert into `todo` (`owner`, `text`) values
-    (1, "Test"),
-    (1, "Todo");
+    (1, "Breath"),
+    (1, "Live");
