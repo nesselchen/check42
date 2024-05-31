@@ -5,7 +5,6 @@ WORKDIR /app
 COPY go.mod     ./
 COPY go.sum     ./
 COPY api        ./api/
-COPY templates  ./templates/
 COPY model      ./model/
 COPY store      ./store/
 COPY static     ./static/
