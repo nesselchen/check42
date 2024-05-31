@@ -21,15 +21,15 @@ type HttpStatus struct {
 	Err  error
 }
 
-// Wrap a ProcessFunc in Process to handle the error that might be returned
+// Wrap a ProcessFunc in Proc to handle the error that might be returned
 // from HttpStatus that is return from a ProcessFunc without interfacing with
 // the response directly. JSON serialization is done automatically.
-func Process[T any](p ProcessFunc[T]) http.HandlerFunc {
+func Proc[T any](p ProcessFunc[T]) http.HandlerFunc {
 	return process(p, true)
 }
 
 // Same as Process but without returning a body in the response.
-func ProcessWithoutResponseBody(n NoValueProcessFunc) http.HandlerFunc {
+func ProcEmpty(n NoValueProcessFunc) http.HandlerFunc {
 	p := func(r *http.Request) (struct{}, HttpStatus) {
 		status := n(r)
 		return struct{}{}, status
@@ -138,7 +138,7 @@ func (route *route) registerHandlers(mux *http.ServeMux, prefixPath string) {
 
 	if len(route.handlers) != 0 {
 
-		fmt.Printf("| Registered methods for path %-15s", fullPath)
+		fmt.Printf("| Registered methods for path %-25s", fullPath)
 		for method := range route.handlers {
 			fmt.Printf(" | %-6s", method)
 		}
