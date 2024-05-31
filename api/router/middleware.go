@@ -10,12 +10,22 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
+// Function that wraps another HandlerFunc allowing early return in an error state
+// or validating a user. Information can be passed between handlers via the
+// *http.Request's context.
+//
+// Nesting is performed when router.ListenAndServe is called.
 type Middleware func(http.HandlerFunc) http.HandlerFunc
 
+// Provider of authorization.
+// If the user has no claims or the provided authentication scheme is not supported
+// by the implentation return false and nil Claims.
 type Authority interface {
 	Authorize(scheme string, payload string) (bool, *Claims)
 }
 
+// Log a request's path and method on every call.
+// Does not log on exit.
 func LogCall(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(r.Method, r.URL.Path)
@@ -23,6 +33,7 @@ func LogCall(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// Extract the basic authentication header and pass it to the authority on request.
 func BasicAuth(authority Authority) Middleware {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -53,6 +64,7 @@ func BasicAuth(authority Authority) Middleware {
 	}
 }
 
+// Extract the 'jwt' cookie and pass it to the authority on request.
 func JWTAuth(authority Authority) Middleware {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +84,8 @@ func JWTAuth(authority Authority) Middleware {
 	}
 }
 
+// Custom type to pass to a request context.
+// Not a raw string to avoid collisions.
 type ctxKey struct {
 	key string
 }
@@ -83,10 +97,8 @@ type Claims struct {
 	Name string
 }
 
-func NoClaims() Claims {
-	return Claims{}
-}
-
+// Get the claims from a request. Failing to do so in a context where the operation
+// is dependent on the claims should fail with a 500.
 func GetClaims(r *http.Request) (*Claims, bool) {
 	claims, ok := r.Context().Value(keyClaims).(*Claims)
 	if !ok {
@@ -95,6 +107,8 @@ func GetClaims(r *http.Request) (*Claims, bool) {
 	return claims, true
 }
 
+// Validate the provided bytes to a consistent with the JWT_SECRET provided in the environment.
+// Changing the JWT_SECRET effectively logs out all users forcing them to log in again.
 func ValidateJWT(payload string, secret []byte) (*Claims, error) {
 	raw := jwt.MapClaims{
 		"id": 0, "sub": "", "exp": 0,

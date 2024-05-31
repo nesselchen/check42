@@ -55,3 +55,6 @@ Run the initialization script found in sql/initdb.sql to initialize the database
 ### Inside Docker
 Run `docker compose up`. \
 Here the default .env configuration should suffice. This will also run the DB initialization script.
+
+### Demo
+For demonstration purposes you can use the dummy user `admin` with password `password` which already has some todos registered.

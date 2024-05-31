@@ -12,6 +12,8 @@ import (
 	jwt "github.com/golang-jwt/jwt/v4"
 )
 
+// Create a new user from the provided JSON body and save it
+//
 // POST /auth/signin
 func (s server) handleSignin(w http.ResponseWriter, r *http.Request) {
 	var u model.CreateUser
@@ -35,6 +37,10 @@ func (s server) handleSignin(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(201)
 }
 
+// Return a JWT the user can use to further authenticate themselves.
+// The endpoint is protected through the BasicAuth middleware which
+// also provides the claims used to construct the JWT.
+//
 // POST /auth/login
 func (s server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	claims, ok := router.GetClaims(r)
@@ -71,6 +77,8 @@ func (s server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Returns an expired JWT irregardless of the user's login status, effectively logging them out.
+//
 // POST /auth/logout
 func (s server) handleLogout(w http.ResponseWriter, _ *http.Request) {
 	http.SetCookie(w, &http.Cookie{

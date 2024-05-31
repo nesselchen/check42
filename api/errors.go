@@ -8,10 +8,12 @@ import (
 	"net/http"
 )
 
+// helper functions for returning errors from ProcessFuncs and for returning early from HandlerFunc
+
 func fail(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	io.WriteString(w, msg)
+	io.WriteString(w, `{"error":"`+msg+`"}`)
 }
 
 var statusOK = router.HttpStatus{

@@ -4,7 +4,6 @@ import (
 	"check42/api/router"
 	"check42/store/stores"
 	"encoding/base64"
-	"os"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -21,11 +20,7 @@ func (a ApiAuthority) Authorize(scheme, payload string) (bool, *router.Claims) {
 	case "basic":
 		return a.validateBasicAuth(payload)
 	case "bearer":
-		secret, found := os.LookupEnv("JWT_SECRET")
-		if !found {
-			return false, nil
-		}
-		return validateJWTAuth(payload, []byte(secret))
+		return validateJWTAuth(payload, a.jwtSecret)
 	}
 	return false, nil
 }

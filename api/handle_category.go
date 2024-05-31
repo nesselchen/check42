@@ -92,34 +92,3 @@ func (s server) handleDeleteCategory(r *http.Request) router.HttpStatus {
 
 	return statusOK
 }
-
-// PATCH /api/todo/{id}
-func (s server) handlePatchTodo(r *http.Request) router.HttpStatus {
-	claims, ok := router.GetClaims(r)
-	if !ok {
-		return internalError
-	}
-
-	pathValue := r.PathValue("id")
-	id, err := strconv.ParseInt(pathValue, 10, 64)
-	if err != nil {
-		return badRequestCause(err)
-	}
-
-	todo, err := s.todos.GetTodo(id, claims.ID)
-	if err != nil {
-		return internalError
-	}
-	if val := r.URL.Query().Get("done"); val != "" {
-		done, err := strconv.ParseBool(val)
-		if err != nil {
-			return badRequestCause(err)
-		}
-		todo.Done = done
-	}
-	if val := r.URL.Query().Get("text"); val != "" {
-		todo.Text = val
-	}
-	s.todos.UpdateTodo(todo.ID, todo.Owner, todo)
-	return router.HttpStatus{Code: http.StatusOK, Err: nil}
-}
